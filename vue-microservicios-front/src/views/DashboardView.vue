@@ -145,6 +145,9 @@
     <!-- Advanced KPI Reports -->
     <KpiReports />
 
+    <!-- Predictive Analytics -->
+    <PredictiveAnalytics />
+
     <!-- Pending Approvals Section -->
     <div class="panel mt-4 border-info border-top border-3 d-print-none">
       <h2><i class="bi bi-ui-checks text-info"></i> Aprobaciones Pendientes</h2>
@@ -252,6 +255,7 @@ import { authService } from '../services/authService'
 import { userService } from '../services/userService'
 import { workflowService } from '../services/workflowService'
 import KpiReports from '../components/KpiReports.vue'
+import PredictiveAnalytics from '../components/PredictiveAnalytics.vue'
 
 const kpis = ref(null)
 const activeSessions = ref([])

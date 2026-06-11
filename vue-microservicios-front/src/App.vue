@@ -1,6 +1,6 @@
 <template>
-  <div :class="{'app-shell': !$route.path.includes('/invoice')}">
-    <aside class="sidebar d-print-none" v-if="!$route.path.includes('/invoice')">
+  <div :class="{'app-shell': !($route.path.includes('/invoice') || $route.path.includes('-report'))}">
+    <aside class="sidebar d-print-none" v-if="!($route.path.includes('/invoice') || $route.path.includes('-report'))">
       <div class="brand">
         <img src="./assets/images/logo.png" alt="North Solutions Logo" class="brand-logo" />
       </div>
@@ -20,18 +20,19 @@
         <RouterLink class="nav-link" to="/warehouse" v-if="role === 'ADMIN' || role === 'ROLE_WAREHOUSE' || role === 'ALMACEN' || role === 'ROLE_SALES' || role === 'VENTAS'"><i class="bi bi-box-seam"></i> Gestión Almacenes</RouterLink>
         <RouterLink class="nav-link" to="/sales" v-if="role === 'ADMIN' || role === 'ROLE_SALES' || role === 'VENTAS'"><i class="bi bi-cart"></i> Ventas y Facturación</RouterLink>
         <RouterLink class="nav-link" to="/hr" v-if="role === 'ADMIN' || role === 'ROLE_HR' || role === 'RRHH'"><i class="bi bi-people"></i> Recursos Humanos</RouterLink>
-        <RouterLink class="nav-link" to="/workflow" v-if="role === 'ADMIN'">
+        <RouterLink class="nav-link" :class="{'nav-pulse': pendingApprovalsCount > 0 && !approvalsSeen}" to="/workflow" v-if="role === 'ADMIN'" @click="approvalsSeen = true">
           <i class="bi bi-ui-checks"></i> Aprobaciones
           <span v-if="pendingApprovalsCount > 0" class="badge bg-danger ms-2">{{ pendingApprovalsCount }}</span>
         </RouterLink>
-        <RouterLink class="nav-link" to="/support" v-if="token">
-          <i class="bi bi-headset"></i> Soporte y Chat 
+        <RouterLink class="nav-link" :class="{'nav-pulse': hasPendingSupport && !supportSeen}" to="/support" v-if="token" @click="supportSeen = true">
+          <i class="bi bi-headset"></i> Soporte y Chat
+          <span v-if="hasPendingSupport && !supportSeen" class="badge bg-warning text-dark ms-2">!</span>
         </RouterLink>
         <button class="btn btn-outline-danger mt-4" @click="() => logout()"><i class="bi bi-box-arrow-left"></i> Cerrar Sesión</button>
       </nav>
     </aside>
 
-    <main :class="{'content': !$route.path.includes('/invoice')}">
+    <main :class="{'content': !($route.path.includes('/invoice') || $route.path.includes('-report'))}">
       <RouterView />
       
       <!-- Global Footer -->
@@ -43,19 +44,35 @@
 </template>
 
 <script setup>
-import { RouterView } from 'vue-router'
-import { ref, onMounted, computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import { ref, onMounted, computed, watch, watchEffect } from 'vue'
 import { authService } from './services/authService'
 import hrService from './services/hrService'
 import { workflowService } from './services/workflowService'
+import { ticketService } from './services/ticketService'
 
 const token = ref(sessionStorage.getItem('token'))
 const role = ref(sessionStorage.getItem('role'))
 const username = ref(sessionStorage.getItem('username'))
 const employeeName = ref('')
 const pendingApprovalsCount = ref(0)
+const hasPendingSupport = ref(false)
+const approvalsSeen = ref(false)
+const supportSeen = ref(false)
+const route = useRoute()
 let notificationInterval = null
 let sessionCheckInterval = null
+let supportInterval = null
+
+// When navigating away and back, re-check if seen
+watch(() => route.path, (newPath) => {
+  if (newPath === '/workflow') {
+    approvalsSeen.value = true
+  }
+  if (newPath === '/support') {
+    supportSeen.value = true
+  }
+})
 
 const displayRole = computed(() => {
   if (role.value === 'ADMIN') return 'Administrador'
@@ -71,6 +88,14 @@ const roleClass = computed(() => {
   if (role.value === 'ROLE_WAREHOUSE' || role.value === 'ALMACEN') return 'bg-warning text-dark'
   if (role.value === 'ROLE_HR' || role.value === 'RRHH') return 'bg-info text-dark'
   return 'bg-secondary'
+})
+
+watchEffect(() => {
+  if (displayRole.value && displayRole.value !== 'Invitado') {
+    document.title = `${displayRole.value} North Solutions`
+  } else {
+    document.title = 'North Solutions'
+  }
 })
 
 onMounted(async () => {
@@ -102,6 +127,12 @@ onMounted(async () => {
     window.addEventListener('workflow-updated', checkPendingApprovals)
   }
 
+  // Poll for pending support tickets
+  if (token.value) {
+    checkPendingSupport()
+    supportInterval = setInterval(checkPendingSupport, 15000)
+  }
+
   // Real-time session validation (forces logout if kicked by admin)
   if (token.value) {
     sessionCheckInterval = setInterval(async () => {
@@ -126,6 +157,8 @@ const checkPendingApprovals = async () => {
     const res = await workflowService.getPendientes(token.value)
     const newCount = res.data ? res.data.length : 0
     if (newCount > pendingApprovalsCount.value && newCount > 0) {
+      // New approvals arrived — re-trigger pulse even if user had seen before
+      approvalsSeen.value = false
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('Nuevas Aprobaciones Pendientes', {
           body: `Tienes ${newCount} documento(s) pendiente(s) de aprobación.`,
@@ -139,12 +172,36 @@ const checkPendingApprovals = async () => {
   }
 }
 
+const checkPendingSupport = async () => {
+  try {
+    const isAdmin = role.value === 'ADMIN'
+    let tickets
+    if (isAdmin) {
+      tickets = await ticketService.getAllTickets()
+    } else {
+      tickets = await ticketService.getUserTickets(username.value)
+    }
+    const openTickets = tickets.filter(t => t.status !== 'RESUELTO' && t.status !== 'CERRADO')
+    const hadPending = hasPendingSupport.value
+    hasPendingSupport.value = openTickets.length > 0
+    // If new tickets appeared, reset seen so it blinks again
+    if (!hadPending && hasPendingSupport.value) {
+      supportSeen.value = false
+    }
+  } catch (err) {
+    console.error('Error checking support tickets:', err)
+  }
+}
+
 const logout = async (force = false) => {
   if (notificationInterval) {
     clearInterval(notificationInterval)
   }
   if (sessionCheckInterval) {
     clearInterval(sessionCheckInterval)
+  }
+  if (supportInterval) {
+    clearInterval(supportInterval)
   }
   
   window.removeEventListener('workflow-updated', checkPendingApprovals)

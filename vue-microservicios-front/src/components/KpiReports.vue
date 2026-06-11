@@ -9,31 +9,48 @@
 
     <!-- Filtros (no visibles al imprimir) -->
     <div class="row mb-4 no-print g-3 bg-light p-3 rounded">
+      <template v-if="comparePeriod === 'NONE'">
+        <div class="col-md-3">
+          <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo desde:</label>
+          <input type="date" class="form-control" v-model="filterStartDate" @change="applyFilters">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo hasta:</label>
+          <input type="date" class="form-control" v-model="filterEndDate" @change="applyFilters">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold"><i class="bi bi-bar-chart"></i> Agrupar Ventas por:</label>
+          <select class="form-select" v-model="salesTimeGroup" @change="applyFilters">
+            <option value="DAY">Día</option>
+            <option value="WEEK">Semana</option>
+            <option value="MONTH">Mes</option>
+            <option value="SIX_MONTHS">Seis Meses</option>
+            <option value="YEAR">Anual</option>
+          </select>
+        </div>
+      </template>
+      <template v-else>
+        <div class="col-md-3">
+          <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo 1:</label>
+          <input v-if="comparePeriod === 'TWO_DAYS'" type="date" class="form-control" v-model="compareDate1" @change="applyFilters">
+          <input v-if="comparePeriod === 'TWO_WEEKS'" type="week" class="form-control" v-model="compareDate1" @change="applyFilters">
+          <input v-if="comparePeriod === 'TWO_MONTHS'" type="month" class="form-control" v-model="compareDate1" @change="applyFilters">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo 2:</label>
+          <input v-if="comparePeriod === 'TWO_DAYS'" type="date" class="form-control" v-model="compareDate2" @change="applyFilters">
+          <input v-if="comparePeriod === 'TWO_WEEKS'" type="week" class="form-control" v-model="compareDate2" @change="applyFilters">
+          <input v-if="comparePeriod === 'TWO_MONTHS'" type="month" class="form-control" v-model="compareDate2" @change="applyFilters">
+        </div>
+      </template>
+      
       <div class="col-md-3">
-        <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo desde:</label>
-        <input type="date" class="form-control" v-model="filterStartDate" @change="applyFilters">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> Periodo hasta:</label>
-        <input type="date" class="form-control" v-model="filterEndDate" @change="applyFilters">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold"><i class="bi bi-bar-chart"></i> Agrupar Ventas por:</label>
-        <select class="form-select" v-model="salesTimeGroup" @change="applyFilters">
-          <option value="DAY">Día</option>
-          <option value="WEEK">Semana</option>
-          <option value="MONTH">Mes</option>
-          <option value="SIX_MONTHS">Seis Meses</option>
-          <option value="YEAR">Anual</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold"><i class="bi bi-arrow-left-right"></i> Comparativa Otros KPIs:</label>
+        <label class="form-label fw-bold"><i class="bi bi-arrow-left-right"></i> Modo de Comparación:</label>
         <select class="form-select" v-model="comparePeriod" @change="applyFilters">
-          <option value="NONE">Sin Comparar</option>
-          <option value="PREV_DAY">vs Día Anterior</option>
-          <option value="PREV_WEEK">vs Semana Anterior</option>
-          <option value="PREV_MONTH">vs Mes Anterior</option>
+          <option value="NONE">Sin Comparar (Rango Libre)</option>
+          <option value="TWO_DAYS">Comparar 2 Días</option>
+          <option value="TWO_WEEKS">Comparar 2 Semanas</option>
+          <option value="TWO_MONTHS">Comparar 2 Meses</option>
         </select>
       </div>
       <div class="col-md-12 mt-3">
@@ -131,7 +148,8 @@
               </div>
 
               <div style="position: relative; height: 250px;">
-                <Pie v-if="hrChartData" :data="hrChartData" :options="pieChartOptions" />
+                <Bar v-if="hrChartData && comparePeriod !== 'NONE'" :data="hrChartData" :options="barChartOptions" />
+                <Pie v-else-if="hrChartData" :data="hrChartData" :options="pieChartOptions" />
                 <div v-else class="text-center text-muted py-5">Cargando...</div>
               </div>
             </div>
@@ -222,7 +240,8 @@
         <div class="card shadow-sm mb-4 border-info">
           <div class="card-body">
             <div style="position: relative; height: 350px;">
-              <Pie v-if="hrChartData" :data="hrChartData" :options="pieChartOptions" />
+              <Bar v-if="hrChartData && comparePeriod !== 'NONE'" :data="hrChartData" :options="barChartOptions" />
+              <Pie v-else-if="hrChartData" :data="hrChartData" :options="pieChartOptions" />
             </div>
           </div>
         </div>
@@ -240,7 +259,7 @@
               <td>EMP-{{ att.employee?.id }} ({{ att.employee?.firstName }})</td>
               <td>{{ new Date(att.date).toLocaleDateString() }}</td>
               <td>
-                <span class="badge" :class="att.status === 'PRESENTE' ? 'bg-success' : 'bg-danger'">
+                <span class="badge" :class="att.status === 'PRESENT' ? 'bg-success' : 'bg-danger'">
                   {{ att.status }}
                 </span>
               </td>
@@ -276,6 +295,32 @@ import hrService from '../services/hrService'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement)
 
+const barLabelsPlugin = {
+  id: 'barLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (meta.type !== 'bar') return;
+      meta.data.forEach((bar, index) => {
+        const val = dataset.data[index];
+        if (!val) return;
+        ctx.save();
+        ctx.fillStyle = '#495057';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        let text = '$' + Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (val >= 1000000) text = '$' + (val / 1000000).toFixed(1) + 'M';
+        else if (val >= 1000) text = '$' + (val / 1000).toFixed(1) + 'k';
+        ctx.fillText(text, bar.x, bar.y - 5);
+        ctx.restore();
+      });
+    });
+  }
+}
+ChartJS.register(barLabelsPlugin)
+
 const currentUserName = ref(sessionStorage.getItem('username') || 'Usuario')
 
 // Filters State
@@ -284,6 +329,8 @@ const filterStartDate = ref('')
 const filterEndDate = ref('')
 const salesTimeGroup = ref('MONTH')
 const comparePeriod = ref('NONE')
+const compareDate1 = ref('')
+const compareDate2 = ref('')
 
 // Chart Data
 const salesChartData = ref(null)
@@ -372,93 +419,106 @@ const getGroupLabel = (val) => {
 }
 
 const getCompareLabel = (val) => {
-  const labels = { PREV_DAY: 'vs Día Anterior', PREV_WEEK: 'vs Semana Anterior', PREV_MONTH: 'vs Mes Anterior' }
+  const labels = { TWO_DAYS: 'Comparativa de 2 Días', TWO_WEEKS: 'Comparativa de 2 Semanas', TWO_MONTHS: 'Comparativa de 2 Meses' }
   return labels[val] || val
 }
 
-const getPeriodBounds = (period) => {
-  const now = new Date();
-  const currentStart = new Date(now);
-  const currentEnd = new Date(now);
-  const previousStart = new Date(now);
-  const previousEnd = new Date(now);
-
-  if (period === 'PREV_DAY') {
-    currentStart.setHours(0,0,0,0);
-    currentEnd.setHours(23,59,59,999);
-    previousStart.setDate(now.getDate() - 1);
-    previousStart.setHours(0,0,0,0);
-    previousEnd.setDate(now.getDate() - 1);
-    previousEnd.setHours(23,59,59,999);
-  } else if (period === 'PREV_WEEK') {
-    const sw = getStartOfWeek(now);
-    currentStart.setTime(sw.getTime());
-    currentEnd.setHours(23,59,59,999);
-    previousStart.setTime(sw.getTime());
-    previousStart.setDate(previousStart.getDate() - 7);
-    previousEnd.setTime(sw.getTime());
-    previousEnd.setMilliseconds(-1);
-  } else if (period === 'PREV_MONTH') {
-    const sm = getStartOfMonth(now);
-    currentStart.setTime(sm.getTime());
-    currentEnd.setHours(23,59,59,999);
-    previousStart.setTime(sm.getTime());
-    previousStart.setMonth(previousStart.getMonth() - 1);
-    previousEnd.setTime(sm.getTime());
-    previousEnd.setMilliseconds(-1);
-  } else {
-    return null;
+const getCustomBounds = (val, type) => {
+  if (!val) return null;
+  let start = new Date();
+  let end = new Date();
+  if (type === 'TWO_DAYS') {
+    start = new Date(val + 'T00:00:00');
+    end = new Date(val + 'T23:59:59');
+  } else if (type === 'TWO_MONTHS') {
+    const parts = val.split('-');
+    start = new Date(parts[0], parseInt(parts[1])-1, 1);
+    end = new Date(parts[0], parseInt(parts[1]), 0, 23, 59, 59);
+  } else if (type === 'TWO_WEEKS') {
+    const year = parseInt(val.substring(0, 4));
+    const week = parseInt(val.substring(6));
+    const simpleDate = new Date(year, 0, 1 + (week - 1) * 7);
+    start = getStartOfWeek(simpleDate);
+    end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23,59,59,999);
   }
-  return { currentStart, currentEnd, previousStart, previousEnd };
-}
-
-const calculateComparisons = () => {
-  const bounds = getPeriodBounds(comparePeriod.value)
-  if (!bounds) {
-    compareStats.value = null
-    return
-  }
-
-  // HR Comparison
-  let currentHR = 0, prevHR = 0
-  rawAttendance.value.forEach(a => {
-    const d = new Date(a.date)
-    if (d >= bounds.currentStart && d <= bounds.currentEnd && a.status === 'PRESENTE') currentHR++
-    if (d >= bounds.previousStart && d <= bounds.previousEnd && a.status === 'PRESENTE') prevHR++
-  })
-
-  // Warehouse Comparison
-  let currentLowStock = 0
-  rawProducts.value.forEach(p => { if(p.stock < 10) currentLowStock++ })
-
-  const stockAtPrevEnd = {}
-  rawProducts.value.forEach(p => stockAtPrevEnd[p.id] = p.stock)
-
-  rawTransactions.value.forEach(t => {
-    const d = new Date(t.transactionDate)
-    if (d > bounds.previousEnd) {
-      if (t.type === 'IN') stockAtPrevEnd[t.product?.id || t.productId] -= t.quantity
-      else if (t.type === 'OUT') stockAtPrevEnd[t.product?.id || t.productId] += t.quantity
-    }
-  })
-
-  let prevLowStock = 0
-  Object.values(stockAtPrevEnd).forEach(s => {
-    if (s < 10) prevLowStock++
-  })
-
-  compareStats.value = {
-    hrCurrent: currentHR,
-    hrPrev: prevHR,
-    hrDiff: prevHR > 0 ? (((currentHR - prevHR) / prevHR) * 100).toFixed(1) : (currentHR > 0 ? 100 : 0),
-    whCurrentLow: currentLowStock,
-    whPrevLow: prevLowStock,
-    whDiff: prevLowStock > 0 ? (((currentLowStock - prevLowStock) / prevLowStock) * 100).toFixed(1) : (currentLowStock > 0 ? 100 : 0)
-  }
+  return { start, end };
 }
 
 const applyFilters = () => {
-  // 1. Base date filtering for standard display
+  if (comparePeriod.value !== 'NONE') {
+    const bounds1 = getCustomBounds(compareDate1.value, comparePeriod.value);
+    const bounds2 = getCustomBounds(compareDate2.value, comparePeriod.value);
+
+    let sales1 = 0, sales2 = 0;
+    let hrPres1 = 0, hrAbs1 = 0, hrPres2 = 0, hrAbs2 = 0;
+    
+    if (bounds1 && bounds2) {
+      rawSales.value.forEach(s => {
+        const d = new Date(s.saleDate);
+        if (d >= bounds1.start && d <= bounds1.end) sales1 += s.total || 0;
+        if (d >= bounds2.start && d <= bounds2.end) sales2 += s.total || 0;
+      });
+
+      rawAttendance.value.forEach(a => {
+        const d = new Date(a.date);
+        if (d >= bounds1.start && d <= bounds1.end) {
+          if (a.status === 'PRESENT') hrPres1++; else hrAbs1++;
+        }
+        if (d >= bounds2.start && d <= bounds2.end) {
+          if (a.status === 'PRESENT') hrPres2++; else hrAbs2++;
+        }
+      });
+      
+      filteredSales.value = rawSales.value.filter(s => {
+        const d = new Date(s.saleDate);
+        return (d >= bounds1.start && d <= bounds1.end) || (d >= bounds2.start && d <= bounds2.end);
+      });
+      filteredAttendance.value = rawAttendance.value.filter(a => {
+        const d = new Date(a.date);
+        return (d >= bounds1.start && d <= bounds1.end) || (d >= bounds2.start && d <= bounds2.end);
+      });
+    } else {
+      filteredSales.value = [];
+      filteredAttendance.value = [];
+    }
+
+    const label1 = compareDate1.value || 'Periodo 1';
+    const label2 = compareDate2.value || 'Periodo 2';
+
+    salesChartData.value = {
+      labels: [label1, label2],
+      datasets: [{
+        label: 'Ingresos Totales ($)',
+        backgroundColor: ['#0d6efd', '#198754'],
+        data: [sales1, sales2]
+      }]
+    };
+
+    hrChartData.value = {
+      labels: [label1, label2],
+      datasets: [
+        { label: 'Asistencias', backgroundColor: '#0dcaf0', data: [hrPres1, hrPres2] },
+        { label: 'Faltas', backgroundColor: '#ffc107', data: [hrAbs1, hrAbs2] }
+      ]
+    };
+
+    let lowStock = 0, normalStock = 0
+    rawProducts.value.forEach(p => {
+      if (p.stock < 10) lowStock++
+      else normalStock++
+    })
+    warehouseChartData.value = {
+      labels: ['Stock Normal', 'Bajo Stock (< 10)'],
+      datasets: [{ backgroundColor: ['#198754', '#dc3545'], data: [normalStock, lowStock] }]
+    }
+
+    compareStats.value = null;
+    return;
+  }
+
+  // --- Normal Logic ---
   let sales = [...rawSales.value]
   let attendance = [...rawAttendance.value]
   
@@ -497,7 +557,7 @@ const applyFilters = () => {
   // 3. Process HR standard
   let present = 0, absent = 0
   attendance.forEach(a => {
-    if (a.status === 'PRESENTE') present++
+    if (a.status === 'PRESENT') present++
     else absent++
   })
   hrChartData.value = {
@@ -522,12 +582,7 @@ const applyFilters = () => {
     }]
   }
 
-  // 5. Comparisons
-  if (comparePeriod.value !== 'NONE') {
-    calculateComparisons()
-  } else {
-    compareStats.value = null
-  }
+  compareStats.value = null
 }
 
 const loadData = async () => {

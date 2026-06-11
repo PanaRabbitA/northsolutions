@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  enterprisehub:
+    build: ./enterprisehub
+    container_name: enterprisehub
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
+      - EUREKA_CLIENT_FETCHREGISTRY=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/apps"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  ms-auth:
+    build: ./ms-auth
+    container_name: ms-auth
+    ports:
+      - "8081:8081"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_user?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  ms-user:
+    build: ./ms-user
+    container_name: ms-user
+    ports:
+      - "8082:8082"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_user?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  workflow-service:
+    build: ./workflow-service
+    container_name: workflow-service
+    ports:
+      - "8083:8083"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_workflow?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  ms-warehouse:
+    build: ./ms-warehouse
+    container_name: ms-warehouse
+    ports:
+      - "8084:8084"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_warehouse?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  ms-sales:
+    build: ./ms-sales
+    container_name: ms-sales
+    ports:
+      - "8085:8085"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_sales?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  ms-hr:
+    build: ./ms-hr
+    container_name: ms-hr
+    ports:
+      - "8086:8086"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_hr?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  ms-dashboard:
+    build: ./ms-dashboard
+    container_name: ms-dashboard
+    ports:
+      - "8087:8087"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://enterprisehub:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bd_dashboard?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      mysql:
+        condition: service_healthy
+      enterprisehub:
+        condition: service_healthy
+
+  frontend:
+    build: ./vue-microservicios-front
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - ms-auth
+      - ms-user
+      - workflow-service
+      - ms-warehouse
+      - ms-sales
+      - ms-hr
+      - ms-dashboard
+
+volumes:
+  mysql_data:

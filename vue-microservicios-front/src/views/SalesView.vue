@@ -28,7 +28,19 @@
     <div v-if="success" class="alert alert-success">{{ success }}</div>
 
     <div class="panel">
-      <h2>Historial de Ventas</h2>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Historial de Ventas</h2>
+        <div class="d-flex gap-2">
+          <input type="text" v-model="searchQuery" class="form-control" placeholder="Buscar ID..." style="width: 150px;">
+          <select v-model="statusFilter" class="form-select" style="width: 180px;">
+            <option value="todas">Todos los estados</option>
+            <option value="COMPLETADA">Completadas</option>
+            <option value="APROBADO">Autorizadas</option>
+            <option value="RECHAZADO">Rechazadas</option>
+            <option value="PENDIENTE">Pendientes</option>
+          </select>
+        </div>
+      </div>
       <div class="table-responsive">
         <table class="table align-middle">
           <thead>
@@ -78,9 +90,10 @@
     </div>
 
     <!-- Modal Nueva Venta -->
-    <div v-if="showSaleModal" class="modal-backdrop">
-      <div class="panel modal-content">
-        <h2>Punto de Venta</h2>
+    <Teleport to="body">
+      <div v-if="showSaleModal" class="custom-modal-backdrop">
+        <div class="panel custom-modal-content">
+          <h2>Punto de Venta</h2>
         <form @submit.prevent="submitSale" class="form-stack">
           
           <div class="product-selector mb-3 p-3 bg-light rounded border">
@@ -160,6 +173,7 @@
         </form>
       </div>
     </div>
+    </Teleport>
 
     <!-- La plantilla de factura se ha movido a su propia vista para impresión limpia -->
 
@@ -181,26 +195,51 @@ const error = ref('')
 const success = ref('')
 const currentUserName = ref(sessionStorage.getItem('username') || 'Usuario')
 const reportPeriod = ref('mensual')
+const searchQuery = ref('')
+const statusFilter = ref('todas')
 
 const selectedInvoice = ref(null)
 
 const showSaleModal = ref(false)
 const isProcessing = ref(false)
 
+const getSaleStatus = (sale) => {
+  if (!sale.requiresApproval) return 'COMPLETADA'
+  const wfStatus = workflows.value[sale.id]
+  if (wfStatus) return wfStatus
+  return 'PENDIENTE' // By default if it requires approval but no WF yet
+}
+
 const filteredSales = computed(() => {
-  if (reportPeriod.value === 'todos') return sales.value;
-  const now = new Date();
-  let limitDate = new Date(0);
+  let list = sales.value;
   
-  if (reportPeriod.value === 'dia') {
-    limitDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  } else if (reportPeriod.value === 'semanal') {
-    limitDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  } else if (reportPeriod.value === 'mensual') {
-    limitDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // 1. Filtrar por Fecha
+  if (reportPeriod.value !== 'todos') {
+    const now = new Date();
+    let limitDate = new Date(0);
+    if (reportPeriod.value === 'dia') {
+      limitDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (reportPeriod.value === 'semanal') {
+      limitDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (reportPeriod.value === 'mensual') {
+      limitDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    list = list.filter(s => new Date(s.saleDate) >= limitDate);
   }
-  
-  return sales.value.filter(s => new Date(s.saleDate) >= limitDate);
+
+  // 2. Filtrar por Estado
+  if (statusFilter.value !== 'todas') {
+    list = list.filter(s => getSaleStatus(s) === statusFilter.value);
+  }
+
+  // 3. Filtrar por Búsqueda (ID)
+  if (searchQuery.value.trim() !== '') {
+    const term = searchQuery.value.trim().toLowerCase();
+    list = list.filter(s => s.id.toString().includes(term));
+  }
+
+  // Sort descending by ID to show newest first
+  return list.sort((a, b) => b.id - a.id);
 })
 
 const requestApproval = async (saleId) => {
@@ -442,17 +481,23 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.modal-backdrop {
+.custom-modal-backdrop {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1050;
 }
-.modal-content {
+.custom-modal-content {
   width: 100%;
   max-width: 600px;
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 </style>

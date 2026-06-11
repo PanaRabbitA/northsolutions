@@ -1,0 +1,10 @@
+CREATE DATABASE IF NOT EXISTS bd_user;
+CREATE DATABASE IF NOT EXISTS bd_sales;
+CREATE DATABASE IF NOT EXISTS bd_hr;
+CREATE DATABASE IF NOT EXISTS bd_warehouse;
+CREATE DATABASE IF NOT EXISTS bd_workflow;
+CREATE DATABASE IF NOT EXISTS bd_dashboard;
+
+-- Grants para que cualquier usuario pueda acceder desde los contenedores
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;

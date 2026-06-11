@@ -335,8 +335,19 @@ pre code {
 
 .alert-success {
   background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #065f46;
+}
+
+/* ── Sidebar Notification Pulse Animation ── */
+@keyframes sidebarPulse {
+  0%   { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+  50%  { background: rgba(239, 68, 68, 0.35); box-shadow: 0 0 18px rgba(239, 68, 68, 0.5); }
+  100% { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+}
+
+.nav-link.nav-pulse {
+  animation: sidebarPulse 1.5s ease-in-out infinite;
+  color: white !important;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {
