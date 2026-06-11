@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+
+# Maven build directories
+target/
+*.jar
+*.war
+*.ear
+
+# IDE and Editor folders
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db

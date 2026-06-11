@@ -1,0 +1,25 @@
+{
+  "name": "vue-microservicios-front",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "latest",
+    "bootstrap": "latest",
+    "bootstrap-icons": "latest",
+    "chart.js": "^4.5.1",
+    "jspdf": "^4.2.1",
+    "vite": "latest",
+    "vue": "latest",
+    "vue-chartjs": "^5.3.3",
+    "vue-router": "latest"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7"
+  }
+}
